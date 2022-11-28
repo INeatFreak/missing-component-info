@@ -64,6 +64,105 @@ namespace Needle.ComponentExtension
 
 		private static readonly Dictionary<string, List<ScriptCandidate>> candidatesPerType = new Dictionary<string, List<ScriptCandidate>>();
 
+		[MenuItem("GameObject/needle-tools/Missing Component Info/Inject All Scene Objects")]
+		private static void InjectAllSceneObjects()
+		{
+			if (Application.isPlaying)
+				return;
+
+			var timer = new System.Diagnostics.Stopwatch();
+			timer.Start();
+			
+			var logs = new System.Text.StringBuilder();
+			logs.AppendLine("Injecting indentifiers to all open scene objects...  Click for more details!");
+			logs.AppendLine();
+
+
+			var numbOfScenes = UnityEngine.SceneManagement.SceneManager.sceneCount;
+			logs.AppendLine($"Number Of Scenes: {numbOfScenes}");
+			logs.AppendLine();
+
+
+			for (int i = 0; i < numbOfScenes; i++)
+			{
+				var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+				logs.AppendLine($"Scene [{i+1}/{numbOfScenes}] : {scene.name}");
+				logs.AppendLine();
+
+				var rootObjects = scene.GetRootGameObjects();
+				var numbOfRootObjects = rootObjects.Length;
+				for (int j = 0; j < numbOfRootObjects; j++)
+				{
+					var rootObj = rootObjects[j];
+					logs.AppendLine($"Root Object [{j+1}/{numbOfRootObjects}] : {rootObj.name}");
+
+					var components = rootObj.GetComponentsInChildren<MonoBehaviour>(true);
+					var numbOfComponents = components.Length;
+					for (int c = 0; c < numbOfComponents; c++)
+					{
+						var comp = components[c];
+						if (comp)
+						{
+							logs.AppendLine($"Target Script [{c+1}/{numbOfComponents}] : {comp.GetType().Name}");
+							
+							var serializedObject = new SerializedObject(comp);
+							var prop = serializedObject.FindProperty("m_EditorClassIdentifier");
+							if (prop != null)
+							{
+								// logs.AppendLine($"prop: {prop.name}");
+								
+								var identifier = comp.GetType().AssemblyQualifiedName;
+								if (String.IsNullOrEmpty(identifier)) {
+									logs.AppendLine("<color=red>Identifier is null or empty!</color>");
+									logs.AppendLine();
+									continue;
+								}
+								identifier = string.Join(",", identifier.Split(',').Take(2));
+
+
+								// logs.AppendLine($"Comparing: '{prop.stringValue}' to '{identifier}'");
+								if (!String.IsNullOrEmpty(prop.stringValue) && prop.stringValue.StartsWith(identifier)) {
+									logs.AppendLine($"<color=yellow>Identifier is already injected!</color> {prop.stringValue}");
+									logs.AppendLine();
+									continue;
+								}
+
+
+								// inject
+								var id = GlobalObjectId.GetGlobalObjectIdSlow(comp);
+								prop.stringValue = $"{identifier} $ " + id;
+								serializedObject.ApplyModifiedProperties();
+								EditorUtility.SetDirty(comp);
+
+								logs.AppendLine($"<color=green>Injected!</color> {prop.stringValue}");
+								logs.AppendLine();
+
+
+							} else {
+								logs.AppendLine("Property is null!");
+							}
+
+						} else {
+							logs.AppendLine("Script is null!");
+						}
+					}
+
+					if (numbOfComponents == 0)
+						logs.AppendLine("No scripts found.");
+
+					logs.AppendLine();
+				}
+			}
+
+
+
+			logs.AppendLine();
+			logs.AppendLine($"Finished in {timer.ElapsedMilliseconds} ms");
+			logs.AppendLine();
+
+			Debug.Log(logs);
+		}
+
 		private static void OnInject(Editor editor, EditorElement element)
 		{
 			// capture script type and store it in the serialized property
