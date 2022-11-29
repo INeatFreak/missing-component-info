@@ -64,12 +64,15 @@ namespace Needle.ComponentExtension
 
 		private static readonly Dictionary<string, List<ScriptCandidate>> candidatesPerType = new Dictionary<string, List<ScriptCandidate>>();
 
-		[MenuItem("GameObject/needle-tools/Missing Component Info/Inject All Scene Objects")]
+		[MenuItem("Tools/Needle/Backup Scene For Missing Scripts")]
 		private static void InjectAllSceneObjects()
 		{
 			if (Application.isPlaying)
 				return;
 
+			if (EditorUtility.DisplayDialog("Are you sure?", "This will inject all scripts in open scenes with their own identifier.", "Confirm", "Cancel") == false)
+				return;
+			
 			var timer = new System.Diagnostics.Stopwatch();
 			timer.Start();
 			
